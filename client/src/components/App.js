@@ -9,7 +9,7 @@ import ConstructionPage from './ConstructionPage.js'
 import Delta from './../delta.png'
 
 const modeTitle = {};
-modeTitle[AppMode.LOGIN] = "welcome to IA6: login";
+modeTitle[AppMode.LOGIN] = "welcome to IA8: login";
 modeTitle[AppMode.DATA] = "my data";
 modeTitle[AppMode.DATA_ADD] = "add data";
 modeTitle[AppMode.DATA_EDIT] = "edit data";
@@ -82,7 +82,7 @@ class App extends React.Component{
                   <img
                   src={Delta}
                   height="200" width="200"/>
-                  <h3>this is IA6 by marco ares</h3>
+                  <h3>this is IA8 by marco ares</h3>
                   <p>version cpts489 spring 2020<br/>
                   &copy; 2020 student at washington state university. all rights
                   reserved.
@@ -96,7 +96,7 @@ class App extends React.Component{
                         react is a hard language to learn in a short period of time,
                         but hey.. we are here now and im learning this bs and hopefully
                         i get a good grade for this. i am honestly super tired. 
-                        but it is what is. now for IA6 i need more commits so im adding this,
+                        but it is what is. now for IA8 i need more commits so im adding this,
                         even though i am done with the assignment.
                     </p>
                     <p>follow me in instagram to support me<a
