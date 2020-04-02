@@ -10,8 +10,8 @@ class DataPage extends React.Component {
     constructor(props) {
           super(props);
           let data = JSON.parse(localStorage.getItem("userData")); 
-          this.state = {name: data[this.props.userId].name,
-                        nameCount: data[this.props.userId].nameCount,
+          this.state = {name: data[this.props.user.id].name,
+                        nameCount: data[this.props.user.id].nameCount,
                         deleteId: "",
                         editId: ""};          
     }
@@ -33,7 +33,7 @@ class DataPage extends React.Component {
         let data = JSON.parse(localStorage.getItem("userData")); 
         let newName = this.state.name;
         newName[this.state.editId] = newData;
-        data[this.props.userId].name = newName;
+        data[this.props.user.id].name = newName;
         localStorage.setItem("userData",JSON.stringify(data));
         this.setState({name: newName, editId: ""});
         this.props.changeMode(AppMode.DATA);
@@ -43,7 +43,7 @@ class DataPage extends React.Component {
         let data = JSON.parse(localStorage.getItem("userData"));
         let newName = this.state.name;
         delete newName[this.state.deleteId];
-        data[this.props.userId].name = newName;
+        data[this.props.user.id].name = newName;
         localStorage.setItem("userData",JSON.stringify(data));
         this.setState({name: newName, deleteId: ""});
     }
@@ -53,8 +53,8 @@ class DataPage extends React.Component {
         let newName = this.state.name;
         newData.nameNum = this.state.nameCount + 1;
         newName[this.state.nameCount + 1] = newData;
-        data[this.props.userId].name = newName;
-        data[this.props.userId].nameCount = this.state.nameCount + 1;
+        data[this.props.user.id].name = newName;
+        data[this.props.user.id].nameCount = this.state.nameCount + 1;
         localStorage.setItem("userData",JSON.stringify(data));
         this.setState({name: newName, nameCount: newData.nameNum});
         this.props.changeMode(AppMode.DATA);

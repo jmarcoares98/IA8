@@ -21,7 +21,7 @@ const dataSchema = new Schema({
     birthday: {type: Date, required: true}
 });
 
-const dataSchema = new Schema({
+const userSchema = new Schema({
   id: {type: String, required: true}, //unique identifier for user
   password: String, //unencrypted password (for now!)
   displayName: {type: String, required: true}, //Name to be displayed within app
@@ -29,7 +29,7 @@ const dataSchema = new Schema({
   profileImageUrl: {type: String, required: true}, //link to profile image
   securityQuestion: String,
   securityAnswer: {type: String, required: function() {return this.securityQuestion ? true: false}},
-  rounds: [dataSchema]
+  data: [dataSchema]
 });
 
 //Convert schema to model
@@ -305,3 +305,118 @@ app.post('/auth/login',
       return next(err);
     }
   });
+
+/////////////////////////////////////
+//EXPRESS APP ROUTES FOR USER Docs //
+/////////////////////////////////////
+
+//USERS/userId route (GET): Attempts to return the data of a user 
+//in users collection.
+//GIVEN: 
+//  id of the user is passed as route parameter.
+//  Fields and values to be updated are passed as body as JSON object 
+//RETURNS: 
+//  Success: status = 200 with user data as JSON object
+//  Failure: status = 400 with error message
+app.get('/users/:userId', async(req, res, next) => {
+  console.log("in /users route (GET) with userId = " + JSON.stringify(req.params.userId));
+  try {
+    let thisUser = await User.findOne({id: req.params.userId});
+    if (!thisUser) {
+      return res.status(400).message("No user account with specified userId was found in database.");
+    } else {
+      return res.status(200).json(JSON.stringify(thisUser));
+    }
+  } catch (err) {
+    console.log()
+    return res.status(400).message("Unexpected error occurred when looking up user in database: " + err);
+  }
+});
+
+//USERS/userId route (POST): Attempts to add a new user in the users 
+//collection. 
+//GIVEN: 
+//  id of the user to add is passed as route parameter.
+//  user data to be added are passed as body as JSON object.
+//VALID DATA:
+//  'password' field MUST be present
+//  The following fields are optional: 
+//  displayName', 'profileImageUrl', 'securityQuestion', 'securityAnswer'
+//RETURNS: 
+//  Success: status = 200
+//  Failure: status = 400 with an error message
+
+app.post('/users/:userId',  async (req, res, next) => {
+  console.log("in /users route (POST) with params = " + JSON.stringify(req.params) +
+    " and body = " + JSON.stringify(req.body));  
+  if (!req.body.hasOwnProperty("password")) {
+    //Body does not contain correct properties
+    return res.status(400).send("/users POST request formulated incorrectly. " + 
+      "It must contain 'password' as field in message body.")
+  }
+  try {
+    let thisUser = await User.findOne({id: req.params.userId});
+    console.log("thisUser: " + JSON.stringify(thisUser));
+    if (thisUser) { //account already exists
+      res.status(400).send("There is already an account with email '" + req.params.userId + "'.  Please choose a different email.");
+    } else { //account available -- add to database
+      thisUser = await new User({
+        id: req.params.userId,
+        password: req.body.password,
+        displayName: req.params.userId,
+        authStrategy: 'local',
+        profileImageUrl: req.body.hasOwnProperty("profileImageUrl") ? 
+          req.body.profileImageUrl : 
+          `https://www.gravatar.com/avatar/${md5(req.params.userId)}`,
+        securityQuestion: req.body.hasOwnProperty("securityQuestion") ? 
+          req.body.securityQuestion : "",
+        securityAnswer: req.body.hasOwnProperty("securityAnswer") ? 
+          req.body.securityAnswer : "",
+        data: []
+      }).save();
+      return res.status(200).send("New account for '" + req.params.userId + "' successfully created.");
+    }
+  } catch (err) {
+    console.log(err);
+    return res.status(400).send("Unexpected error occurred when adding or looking up user in database. " + err);
+   
+  }
+});
+
+//USERS/userId route (PUT): Attempts to update a user in the users collection. 
+//GIVEN: 
+//  id of the user to update is passed as route parameter.
+//  Fields and values to be updated are passed as body as JSON object.  
+//VALID DATA:
+//  Only the following fields may be included in the message body:
+//  password, displayName, profileImageUrl, securityQuestion, securityAnswer
+//RETURNS: 
+//  Success: status = 200
+//  Failure: status = 400 with an error message
+app.put('/users/:userId',  async (req, res, next) => {
+  console.log("in /users PUT with userId = " + JSON.stringify(req.params) + 
+    " and body = " + JSON.stringify(req.body));
+  if (!req.params.hasOwnProperty("userId"))  {
+    return res.status(400).send("users/ PUT request formulated incorrectly." +
+        "It must contain 'userId' as parameter.");
+  }
+  const validProps = ['password', 'displayname', 'profileImageUrl', 'securityQuestion', 'securityAnswer'];
+  for (const bodyProp in req.body) {
+    if (!validProps.includes(bodyProp)) {
+      return res.status(400).send("users/ PUT request formulated incorrectly." +
+        "Only the following props are allowed in body: " +
+        "'password', 'displayname', 'profileImageUrl', 'securityQuestion', 'securityAnswer'");
+    } 
+  }
+  try {
+        let status = await User.updateOne({id: req.params.userId}, 
+                                          {$set: req.body});                            
+        if (status.nModified != 1) { //Should never happen!
+          res.status(400).send("User account exists in database but data could not be updated.");
+        } else {
+          res.status(200).send("User data successfully updated.")
+        }
+      } catch (err) {
+        res.status(400).send("Unexpected error occurred when updating user data in database: " + err);
+      }
+});

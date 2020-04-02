@@ -28,7 +28,7 @@ class App extends React.Component{
         super(props);
         this.state = {mode: AppMode.LOGIN,
                       menuOpen: false,
-                      userId: "",
+                      user: "",
                       showAbout: false,
                       authenticated: false,};
         }
@@ -83,8 +83,8 @@ class App extends React.Component{
                   securityQuestion: '',
                   securityAnswer: ''
                 },
-                rounds: {}, 
-                roundCount: 0
+                name: {}, 
+                nameCount: 0 
               };
               //Commit to localStorage:
               localStorage.setItem("userData",JSON.stringify(data));
@@ -181,7 +181,7 @@ componentWillUnmount() {
               mode={this.state.mode}
               menuOpen={this.state.menuOpen}
               changeMode={this.handleChangeMode}
-              userId={this.state.userId}
+              user={this.state.user}
               showAbout={this.toggleAbout}/>
             <ModeBar 
               mode={this.state.mode} 
@@ -190,8 +190,8 @@ componentWillUnmount() {
             <ModePage menuOpen={this.state.menuOpen}
               mode={this.state.mode} 
               changeMode={this.handleChangeMode}
-              userId={this.state.userId}
-              setUserId={this.setUserId}/>
+              user={this.state.user}
+              setUser={this.setUser}/>
             {this.state.showAbout ? this.renderAbout() : null}
           </div>
           );  
