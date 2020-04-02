@@ -1,7 +1,7 @@
 ///////////////////
 //PASSPORT SET-UP//
 ///////////////////
-const LOCAL_PORT = 4001;
+const LOCAL_PORT = 3000;
 const DEPLOY_URL = "http://localhost:" + LOCAL_PORT;
 import passport from 'passport';
 import passportGithub from 'passport-github'; 
@@ -94,7 +94,7 @@ import {md5} from './md5.js';
 
 const app = express();
 app
-  .use(session({secret: "speedgolf2020", 
+  .use(session({secret: "ia82020", 
                 resave: false,
                 saveUninitialized: false,
                 cookie: {maxAge: 1000 * 60}}))
