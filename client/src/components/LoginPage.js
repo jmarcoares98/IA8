@@ -138,7 +138,7 @@ handleNewAccountChange = (event) => {
 //new object for user, save to localStorage and take user to app's landing page. 
 handleCreateAccount = async (event) => {
     event.preventDefault();
-    const url = '/user/' + this.state.accountName;
+    const url = '/users/' + this.state.accountName;
     const loginInfo = {password: this.state.accountPassword,
                        securityQuestion: this.state.accountSecurityQuestion,
                        securityAnswer: this.state.accountSecurityAnswer};

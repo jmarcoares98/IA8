@@ -420,3 +420,148 @@ app.put('/users/:userId',  async (req, res, next) => {
         res.status(400).send("Unexpected error occurred when updating user data in database: " + err);
       }
 });
+
+///////////////////////////////////////
+//EXPRESS APP ROUTES FOR DATA Docs //
+///////////////////////////////////////
+
+//data /userId route (GET): Attempts to return all data associated with userId
+//GIVEN: 
+//  id of the user whose data are sought is passed as route parameter.
+//RETURNS: 
+//  Success: status = 200 with array of data as JSON object
+//  Failure: status = 400 with error message
+app.get('/data/:userId', async(req, res) => {
+    console.log("in /data route (GET) with userId = " + JSON.stringify(req.params.userId));
+    try {
+      let thisUser = await User.findOne({id: req.params.userId});
+      if (!thisUser) {
+        return res.status(400).message("No user account with specified userId was found in database.");
+      } else {
+        return res.status(200).json(JSON.stringify(thisUser.data));
+      }
+    } catch (err) {
+      console.log()
+      return res.status(400).message("Unexpected error occurred when looking up user in database: " + err);
+    }
+  });
+  
+  
+  //data/userId/ (POST): Attempts to add new data to database
+  //GIVEN:
+  //  id of the user whose data is to be added is passed as 
+  //  route parameter
+  //  JSON object containing data to be added is passed in request body
+  //VALID DATA:
+  //  user id must correspond to user in Users collection
+  //  Body object MUST contain only the following fields:
+  //  date, course, type, holes, strokes, minutes, seconds, notes
+  //RETURNS:
+  //  Success: status = 200
+  //  Failure: status = 400 with error message
+  app.post('/data/:userId', async (req, res, next) => {
+    console.log("in /data (POST) route with params = " + 
+                JSON.stringify(req.params) + " and body = " + 
+                JSON.stringify(req.body));
+    if (!req.body.hasOwnProperty("name") || 
+        !req.body.hasOwnProperty("birthday")
+        ) {
+      //Body does not contain correct properties
+      return res.status(400).send("POST request on /data formulated incorrectly." +
+        "Body must contain all 2 required fields: name, birthday");
+    }
+    try {
+      let status = await User.update(
+      {id: req.params.userId},
+      {$push: {data: req.body}});
+      if (status.nModified != 1) { //Should never happen!
+        res.status(400).send("Unexpected error occurred when adding data to database. Data was not added.");
+      } else {
+        res.status(200).send("Data successfully added to database.");
+      }
+    } catch (err) {
+      console.log(err);
+      return res.status(400).send("Unexpected error occurred when adding data to database: " + err);
+    } 
+  });
+  
+  //data/userId/dataId (PUT): Attempts to update data for an existing data
+  //GIVEN:
+  //  id of the user whose data is to be updated is passed as first 
+  //  route parameter
+  //  id of data to be updated is passed as second route parameter
+  //  JSON object containing data to be updated is passed in request body
+  //VALID DATA:
+  //  user id must correspond to user in Users collection
+  //  data id must correspond to a user's data. (Use data/ GET route to obtain a
+  //  list of all of user's data, including their unique ids)
+  //  Body object may contain only the following 9 fields:
+  //  date, course, type, holes, strokes, minutes, seconds, notes
+  //RETURNS:
+  //  Success: status = 200
+  //  Failure: status = 400 with error message
+  app.put('/data/:userId/:dataId', async (req, res, next) => {
+    console.log("in /data (PUT) route with params = " + 
+                JSON.stringify(req.params) + " and body = " + 
+                JSON.stringify(req.body));
+    const validProps = ['date', 'course', 'type', 'holes', 'strokes',
+      'minutes', 'seconds', 'notes'];
+    let bodyObj = {...req.body};
+    for (const bodyProp in bodyObj) {
+      if (!validProps.includes(bodyProp)) {
+        return res.status(400).send("data/ PUT request formulated incorrectly." +
+          "Only the following props are allowed in body: " +
+          "'date', 'course', 'type', 'holes', 'strokes'" +
+          "'minutes', 'seconds', 'notes'");
+      } else {
+        bodyObj["data.$." + bodyProp] = bodyObj[bodyProp];
+        delete bodyObj[bodyProp];
+      }
+    }
+    try {
+      let status = await User.updateOne(
+        {"id": req.params.userId,
+         "data._id": mongoose.Types.ObjectId(req.params.dataId)}
+        ,{"$set" : bodyObj}
+      );
+      if (status.nModified != 1) { //Should never happen!
+        res.status(400).send("Unexpected error occurred when updating data in database. Data was not updated.");
+      } else {
+        res.status(200).send("Data successfully updated in database.");
+      }
+    } catch (err) {
+      console.log(err);
+      return res.status(400).send("Unexpected error occurred when updating data in database: " + err);
+    } 
+  });
+  
+  //data/userId/dataId (DELETE): Attempts to delete an existing data
+  //GIVEN:
+  //  id of the user whose data is to be deleted is passed as first 
+  //  route parameter
+  //  id of data to be deleted is passed as second route parameter
+  //VALID DATA:
+  //  user id must correspond to user in Users collection
+  //  data id must correspond to a unique id of a user's data. 
+  //  (Use data/ GET route to obtain a list of all of user's 
+  //  data, including their unique ids)
+  //RETURNS:
+  //  Success: status = 200
+  //  Failure: status = 400 with error message
+  app.delete('/data/:userId/:dataId', async (req, res, next) => {
+    console.log("in /data (DELETE) route with params = " + 
+                JSON.stringify(req.params)); 
+    try {
+      let status = await User.updateOne(
+        {id: req.params.userId},
+        {$pull: {data: {_id: mongoose.Types.ObjectId(req.params.dataId)}}});
+      if (status.nModified != 1) { //Should never happen!
+        res.status(400).send("Unexpected error occurred when deleting data from database. Data was not deleted.");
+      } else {
+        res.status(200).send("Data successfully deleted from database.");
+      }
+    } catch (err) {
+      console.log(err);
+      return res.status(400).send("Unexpected error occurred when deleting data from database: " + err);
+    } 
+  });
