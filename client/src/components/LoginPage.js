@@ -1,6 +1,7 @@
 //code from class
 import React from 'react';
 import AppMode from "./../AppMode.js";
+import md5 from '../md5.js';
 
 class LoginPage extends React.Component {
 
@@ -56,7 +57,7 @@ handleLogin = () => {
 
 //handleLoginSubmit -- Called when user clicks on login button. Initiate spinner
 //for 1 second and call handleLogin to do the work.
-handleLoginSubmit = (event) => {
+handleLoginSubmit = async (event) => {
     event.preventDefault();
     this.setState({loginBtnIcon: "fa fa-spin fa-spinner",
                    loginBtnLabel: "Logging In..."});
@@ -120,7 +121,7 @@ handleNewAccountChange = (event) => {
 //Custom data checking ensures user account under this email does not exist
 //and that the rest of the info is valid. At this point, we can create 
 //new object for user, save to localStorage and take user to app's landing page. 
-handleCreateAccount = (event) => {
+handleCreateAccount = async (event) => {
     event.preventDefault();
     const url = '/user/' + this.state.accountName;
     const loginInfo = {password: this.state.accountPassword,
@@ -267,7 +268,7 @@ renderAccountDialog = () => {
 //button, we check whether the account exists. If it does, we update the state,
 //setting the resetEmail var to the email entered, hiding the current dialog box
 //and showing the security question dialog box.
-handleLookUpAccount = (event) => {
+handleLookUpAccount = async (event) => {
     event.preventDefault();
     let url = "/users/" + this.accountEmailRef.current.value;
     let res = await fetch(url, {method: 'GET'});
@@ -332,7 +333,7 @@ renderLookUpAccountDialog = () => {
 //handleSecurityQuestionResponse: When the user clicks on the "Check Answer" dialog box
 //button, we check whether the security question answer is correct. If it is,
 //present dialog box for resetting the password. 
-handleSecurityQuestionResponse = (event) => {
+handleSecurityQuestionResponse = async(event) => {
     event.preventDefault();
     let response = this.securityAnswerRef.current.value;
     if (response != this.state.resetAnswer) { 
@@ -397,7 +398,7 @@ renderSecurityQuestionDialog = () => {
 //handleResetPassword: When the user clicks on the "Reset Password" dialog box
 //button, we need check whether the passwords match. If they do,
 //we reset the password and log the user in. 
-handleResetPassword = (event) => {
+handleResetPassword = async(event) => {
     event.preventDefault();
     if (this.resetPasswordRef.current.value != this.resetPasswordRepeatRef.current.value) { 
         alert("Sorry, The passwords you entered do not match. Please try again.");
