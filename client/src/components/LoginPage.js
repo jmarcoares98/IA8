@@ -17,6 +17,9 @@ class LoginPage extends React.Component {
         this.resetPasswordRepeatRef = React.createRef();
         this.state = {loginBtnIcon: "fa fa-sign-in",
                       loginBtnLabel: "Log In",
+                      loginMsg: "",
+                      githubIcon: "fa fa-github",
+                      githubLabel: "Sign in with GitHub",
                       showAccountDialog: false,
                       showLookUpAccountDialog: false,
                       showSecurityQuestionDialog: false,
@@ -42,7 +45,11 @@ handleLogin = () => {
     this.setState({loginBtnIcon: "fa fa-sign-in",
                 loginBtnLabel: "Log In"});
     //Set current user
-    this.props.setUserId(this.emailInputRef.current.value);
+    this.props.setUser({id: this.emailInputRef.current.value,
+        username:  this.emailInputRef.current.value,
+        provider: "local",
+        profileImageUrl: `https://www.gravatar.com/avatar/${md5(this.emailInputRef.current.value)}`});
+    this.props.setAuthenticated(true);
     //Trigger switch to FEED mode (default app landing page)
     this.props.changeMode(AppMode.DATA);
 }
@@ -55,6 +62,21 @@ handleLoginSubmit = (event) => {
                     loginBtnLabel: "Logging In..."});
     //Initiate spinner for 1 second
     setTimeout(this.handleLogin,1000);
+}
+
+//handleOAuthLogin -- Callback function that initiates contact with OAuth
+//provider
+handleOAuthLogin = (provider) => {
+    window.open(`/auth/${provider}`,"_self");
+}
+
+//handleOAuthLoginClick -- Called whent the user clicks on button to
+//authenticate via a third-party OAuth service. The name of the provider is
+//passed in as a parameter.
+handleOAuthLoginClick = (provider) => {
+   this.setState({[provider + "Icon"] : "fa fa-spin fa-spinner",
+                  [provider + "Label"] : "Connecting..."});
+   setTimeout(() => this.handleOAuthLogin(provider),1000);
 }
 
 //checkAccountValidity -- Callback function invoked after a form element in
@@ -480,12 +502,12 @@ render() {
              onClick={() => {this.setState({showLookUpAccountDialog: true});}}>Reset your password</button>
         </p>
      
-        <a role="button" className="login-btn">
-            <img src="https://drive.google.com/uc?export=view&id=1YXRuG0pCtsfvbDSTzuM2PepJdbBpjEut" />
-        </a>
-        <a role="button" className="login-btn">
-            <img src="https://drive.google.com/uc?export=view&id=1ZoySWomjxiCnC_R4n9CZWxd_qXzY1IeL" />
-        </a>
+        <p></p>
+            <button type="button" className="btn btn-github"
+               onClick={() => this.handleOAuthLoginClick("github")}>
+              <span className={this.state.githubIcon}></span>&nbsp;{this.state.githubLabel}
+            </button>
+        <p></p>
         <p>
             <i>IA5 CptS 489 react amplify</i>
         </p>
