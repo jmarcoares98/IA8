@@ -566,4 +566,4 @@ app.delete('/data/:userId/:dataId', async (req, res, next) => {
       console.log(err);
       return res.status(400).send("Unexpected error occurred when deleting data from database: " + err);
     } 
-  });
+});
