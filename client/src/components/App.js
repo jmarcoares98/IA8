@@ -48,20 +48,71 @@ class App extends React.Component{
         this.setState(prevState => ({menuOpen: !prevState.menuOpen}));
     }
         
-    setUserId = (Id) => {
-        this.setState({userId: Id});
-    }
+  //Set the User Id object, which contains the following props:
+  //id, username, provider, profileImageUrl
+  setUser = (userObj) => {
+    this.setState({user: userObj});
+  }
 
-    componentDidMount() {
-        window.addEventListener("click",this.handleClick);
-    }
+  //setAuthenticated -- Given auth (true or false), update authentication state.
+  setAuthenticated = (auth) => {
+    this.setState({authenticated: auth});
+  }
 
-    handleClick = (event) => {
-        if (this.state.menuOpen) {
-          this.closeMenu();
+  componentDidMount() {
+    window.addEventListener("click",this.handleClick);
+    if (!this.state.authenticated) { 
+      //Use /auth/test route to re-test authentication and obtain user data
+      fetch("/auth/test")
+        .then((response) => response.json())
+        .then((obj) => {
+          if (obj.isAuthenticated) {
+            let data = JSON.parse(localStorage.getItem("userData"));
+            if (data == null) {
+              data = {}; //create empty database (localStorage)
+            }
+            if (!data.hasOwnProperty(obj.user.id)) {
+              //create new user with this id in database (localStorage)
+              data[obj.user.id] = {
+                accountInfo: {
+                  provider: obj.user.provider,
+                  password: '',
+                  securityQuestion: '',
+                  securityAnswer: ''
+                },
+                rounds: {}, 
+                roundCount: 0
+              };
+              //Commit to localStorage:
+              localStorage.setItem("userData",JSON.stringify(data));
+            } 
+            //Update current user
+            this.setState({
+              authenticated: true,
+              user: obj.user,
+              mode: AppMode.DATA //We're authenticated so can get into the app.
+            });
+          }
         }
-        event.stopPropagation();
+      )
+    } 
+  }
+
+//We remove the event listener when the component
+//unmounts. This is a best practice. 
+componentWillUnmount() {
+  window.removeEventListener("click",this.handleClick);
+}
+
+  //When the user clicks anywhere on the app and the menu is open, close it.
+  //This function takes advantage of event bubbling.
+  handleClick = (event) => {
+    if (this.state.menuOpen) {
+      this.closeMenu();
     }
+    event.stopPropagation();
+  }
+
 
     toggleAbout = () => {
         this.setState(prevState => ({showAbout: !prevState.showAbout}));
