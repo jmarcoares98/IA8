@@ -17,6 +17,9 @@ class LoginPage extends React.Component {
         this.resetPasswordRepeatRef = React.createRef();
         this.state = {loginBtnIcon: "fa fa-sign-in",
                       loginBtnLabel: "Log In",
+                      loginMsg: "",
+                      githubIcon: "fa fa-github",
+                      githubLabel: "Sign in with GitHub",
                       showAccountDialog: false,
                       showLookUpAccountDialog: false,
                       showSecurityQuestionDialog: false,
@@ -42,7 +45,11 @@ handleLogin = () => {
     this.setState({loginBtnIcon: "fa fa-sign-in",
                 loginBtnLabel: "Log In"});
     //Set current user
-    this.props.setUserId(this.emailInputRef.current.value);
+    this.props.setUser({id: this.emailInputRef.current.value,
+        username:  this.emailInputRef.current.value,
+        provider: "local",
+        profileImageUrl: `https://www.gravatar.com/avatar/${md5(this.emailInputRef.current.value)}`});
+    this.props.setAuthenticated(true);
     //Trigger switch to FEED mode (default app landing page)
     this.props.changeMode(AppMode.DATA);
 }
@@ -52,9 +59,38 @@ handleLogin = () => {
 handleLoginSubmit = (event) => {
     event.preventDefault();
     this.setState({loginBtnIcon: "fa fa-spin fa-spinner",
-                    loginBtnLabel: "Logging In..."});
-    //Initiate spinner for 1 second
-    setTimeout(this.handleLogin,1000);
+                   loginBtnLabel: "Logging In..."});
+    const url = "/auth/login?username=" + this.emailInputRef.current.value +
+                "&password=" + this.passwordInputRef.current.value;
+    const res = await fetch(url, {method: 'POST'}); 
+    if (res.status == 200) { //successful login!
+        //Force componentDidMount to execute.
+        //authenticated state will be updated and 
+        //Session will be deserialized.
+        window.open("/","_self");
+    } else { //Unsuccessful login
+      //Grab textual error message
+      const resText = await res.text();
+      //Display error message for 3 seconds and invite another login attempt
+      this.setState({loginBtnIcon: "fa fa-sign-in",
+                     loginBtnLabel: "Log In",
+                     loginMsg: resText}, () => setTimeout(this.hideErrorMsg,3000));
+}
+
+hideErrorMsg = () => {
+    this.emailInputRef.current.value = "";
+    this.passwordInputRef.current.value = "";
+    this.setState({loginMsg: ""});
+}
+
+handleOAuthLogin = (provider) => {
+    window.open(`/auth/${provider}`,"_self");
+}
+
+handleOAuthLoginClick = (provider) => {
+   this.setState({[provider + "Icon"] : "fa fa-spin fa-spinner",
+                  [provider + "Label"] : "Connecting..."});
+   setTimeout(() => this.handleOAuthLogin(provider),1000);
 }
 
 //checkAccountValidity -- Callback function invoked after a form element in
@@ -71,13 +107,6 @@ checkAccountValidity = () => {
     } else {
         this.repeatPassRef.current.setCustomValidity("");
     }
-    let data = JSON.parse(localStorage.getItem("userData"));
-    if (data != null && data.hasOwnProperty(this.state.accountName)) {
-        //The user name is already taken
-        this.newUserRef.current.setCustomValidity("An account already exists under this email address. Use 'Reset password' to recover the password.");
-    } else {
-        this.newUserRef.current.setCustomValidity("");
-    }
 }
     
 //handleNewAccountChange -- Called when a field in a dialog box form changes.
@@ -93,26 +122,25 @@ handleNewAccountChange = (event) => {
 //new object for user, save to localStorage and take user to app's landing page. 
 handleCreateAccount = (event) => {
     event.preventDefault();
-    let data = JSON.parse(localStorage.getItem("userData"));
-    //Create fresh user data object for new user
-    if (data == null) {
-        data = {}; //create empty data object
+    const url = '/user/' + this.state.accountName;
+    const loginInfo = {password: this.state.accountPassword,
+                       securityQuestion: this.state.accountSecurityQuestion,
+                       securityAnswer: this.state.accountSecurityAnswer};
+    const res = await fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+        method: 'POST',
+        body: JSON.stringify(loginInfo)}); 
+    if (res.status == 200) { //successful account creation!
+        alert("Your account was successfully created. Please log in using your email and password to continue.");
+        this.setState({showAccountDialog: false});
+    } else { //Unsuccessful account creation
+      //Grab textual error message
+      const resText = await res.text();
+      alert(resText); //most likely the username is already taken
     }
-    data[this.state.accountName] = {
-        accountInfo: {
-        password: this.state.accountPassword,
-        securityQuestion: this.state.accountSecurityQuestion,
-        securityAnswer: this.state.accountSecurityAnswer
-        },
-        name: {}, 
-        nameCount: 0
-    };
-    //Commit to localStorage:
-    localStorage.setItem("userData",JSON.stringify(data));
-    //Set current user
-    this.props.setUserId(this.state.accountName);
-    //Log in user by switching to FEED mode
-    this.props.changeMode(AppMode.DATA);
 }
 
 //handleLoginChange -- Check the validity of the username (email address)
@@ -137,107 +165,102 @@ handleLoginChange = (event) => {
  
         
     //renderAccountDialog -- Present the "create account" dialog
-    renderAccountDialog = () => {
-        return (
-        <div className="modal" role="dialog">
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h3 className="modal-title"><b>Create New Account</b>
-                  <button className="close-modal-button" 
-                    onClick={() => {this.setState({showLookUpAccountDialog: false})}}>
-                    &times;</button>
-                </h3>
-              </div>
-              <div className="modal-body">
-                <form onSubmit={this.handleCreateAccount}>
-                <label>
-                    Email: 
-                    <input
-                    className="form-control form-text"
-                    name="accountName"
-                    type="email"
-                    size="35"
-                    placeholder="Enter Email Address"
-                    pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
-                    ref={this.newUserRef}
-                    required={true}
-                    value={this.state.accountName}
-                    onChange={this.handleNewAccountChange}
-                    />
-                </label>
-                
-                <label>
-                    Password:
-                    <input
-                    className="form-control form-text"
-                    name="accountPassword"
-                    type="password"
-                    size="35"
-                    placeholder="Enter Password"
-                    pattern="(?=^.{8,}$)((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$"
-                    required={true}
-                    ref={this.repeatPassRef}
-                    value={this.state.accountPassword}
-                    onChange={this.handleNewAccountChange}
-                    />
-                </label>
-                
-                <label>
-                    Repeat Password:
-                    <input
-                    className="form-control form-text"
-                    name="accountPasswordRepeat"
-                    type="password"
-                    size="35"
-                    placeholder="Repeat Password"
-                    required={true}
-                    ref={this.repeatPassRef}
-                    value={this.state.accountPasswordRepeat}
-                    onChange={this.handleNewAccountChange}
-                    />
-                </label>
-                
-                <label>
-                    Security Question:
-                    <textarea
-                    className="form-control form-text"
-                    name="accountSecurityQuestion"
-                    size="35"
-                    placeholder="Security Question"
-                    rows="2"
-                    cols="35"
-                    maxLength="100"
-                    required={true}
-                    value={this.state.accountSecurityQuestion}
-                    onChange={this.handleNewAccountChange}
-                    />
-                </label>
-                <label>
-                    Answer to Security Question:
-                    <textarea
-                    className="form-control form-text"
-                    name="accountSecurityAnswer"
-                    type="text"
-                    placeholder="Answer"
-                    rows="2"
-                    cols="35"
-                    maxLength="100"
-                    required={true}
-                    value={this.state.accountSecurityAnswer}
-                    onChange={this.handleNewAccountChange}
-                    />
-                </label>
-                <button role="submit" className="btn btn-primary btn-color-theme form-submit-btn">
-                    <span className="fa fa-user-plus"></span>&nbsp;Create Account
-                </button>
-                </form>
+renderAccountDialog = () => {
+    return (
+    <div className="modal" role="dialog">
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h3 className="modal-title"><b>Create New Account</b>
+              <button className="close-modal-button" 
+                onClick={() => {this.setState({showLookUpAccountDialog: false})}}>
+                &times;</button>
+            </h3>
             </div>
-          </div>
+            <div className="modal-body">
+            <form onSubmit={this.handleCreateAccount}>
+            <label>
+                Email: 
+                <input
+                className="form-control form-text"
+                name="accountName"
+                type="email"
+                size="35"
+                placeholder="Enter Email Address"
+                pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+                ref={this.newUserRef}
+                required={true}
+                value={this.state.accountName}
+                onChange={this.handleNewAccountChange}
+                />
+            </label>           
+            <label>
+                Password:
+                <input
+                className="form-control form-text"
+                name="accountPassword"
+                type="password"
+                size="35"
+                placeholder="Enter Password"
+                pattern="(?=^.{8,}$)((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$"
+                required={true}
+                ref={this.repeatPassRef}
+                value={this.state.accountPassword}
+                onChange={this.handleNewAccountChange}
+                />
+            </label>  
+            <label>
+                Repeat Password:
+                <input
+                className="form-control form-text"
+                name="accountPasswordRepeat"
+                type="password"
+                size="35"
+                placeholder="Repeat Password"
+                required={true}
+                ref={this.repeatPassRef}
+                value={this.state.accountPasswordRepeat}
+                onChange={this.handleNewAccountChange}
+                />
+            </label>
+            <label>
+                Security Question:
+                <textarea
+                className="form-control form-text"
+                name="accountSecurityQuestion"
+                size="35"
+                placeholder="Security Question"
+                rows="2"
+                cols="35"
+                maxLength="100"
+                required={true}
+                value={this.state.accountSecurityQuestion}
+                onChange={this.handleNewAccountChange}
+                />
+            </label>
+            <label>
+            Answer to Security Question:
+                <textarea
+                className="form-control form-text"
+                name="accountSecurityAnswer"
+                type="text"
+                placeholder="Answer"
+                rows="2"
+                cols="35"
+                maxLength="100"
+                required={true}
+                value={this.state.accountSecurityAnswer}
+                onChange={this.handleNewAccountChange}
+                />
+            </label>
+            <button role="submit" className="btn btn-primary btn-color-theme form-submit-btn">
+                <span className="fa fa-user-plus"></span>&nbsp;Create Account
+            </button>
+            </form>
+            </div>
+            </div>
         </div>
-    </div>
-    );
-
+    </div>);
 }
 
 //handleLookUpAccount: When the user clicks on the "Look Up Account" dialog box
@@ -246,18 +269,24 @@ handleLoginChange = (event) => {
 //and showing the security question dialog box.
 handleLookUpAccount = (event) => {
     event.preventDefault();
-    let thisUser = this.accountEmailRef.current.value;
-    let data = JSON.parse(localStorage.getItem("userData"));
-    //Check username and password:
-    if (data == null || !data.hasOwnProperty(thisUser)) { 
-        alert("Sorry, there is no account associated with this email address.");
+    let url = "/users/" + this.accountEmailRef.current.value;
+    let res = await fetch(url, {method: 'GET'});
+    let body;
+    if (res.status != 200) {
+        alert("Sorry, there is no account associated with that email address.");
         this.accountEmailRef.current.focus();
-    } else {
-        this.setState({resetEmail: thisUser, 
-                       resetQuestion: data[thisUser].accountInfo.securityQuestion,
-                       resetAnswer: data[thisUser].accountInfo.securityAnswer,
-                       showLookUpAccountDialog: false, 
-                       showSecurityQuestionDialog: true});
+        return;
+    } 
+    body = await res.json();
+    body = JSON.parse(body);
+    alert("Body: " + body);
+    //if here, account exists -- user account info and push to state vars
+    this.setState({resetEmail: this.accountEmailRef.current.value, 
+                   resetQuestion:  body.securityQuestion,
+                   resetAnswer: body.securityAnswer,
+                   showLookUpAccountDialog: false, 
+                   showSecurityQuestionDialog: true});
+    this.emailInputRef.current.value = ""; //clear out field
     }
 }
 
@@ -370,21 +399,25 @@ renderSecurityQuestionDialog = () => {
 //we reset the password and log the user in. 
 handleResetPassword = (event) => {
     event.preventDefault();
-   
     if (this.resetPasswordRef.current.value != this.resetPasswordRepeatRef.current.value) { 
         alert("Sorry, The passwords you entered do not match. Please try again.");
         this.resetPasswordRepeatRef.current.select();
-    } else { //Reset password and log user in
-        let data = JSON.parse(localStorage.getItem("userData"));
-        data[this.state.resetEmail].accountInfo.password = this.resetPasswordRef.current.value;
-        localStorage.setItem("userData",JSON.stringify(data));
-        this.props.setUserId(this.state.resetEmail);
-        this.props.changeMode(AppMode.DATA);
-        this.setState({resetEmail: "", 
-                       resetQuestion: "",
-                       resetAnswer: "",
-                       showPasswordResetDialog: false});
+        return;
     }
+    const url = '/users/' + this.state.resetEmail;
+    const resetInfo = {password: this.resetPasswordRef.current.value};
+    const res = await fetch(url, {
+        headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+        },
+        method: 'PUT',
+        body: JSON.stringify(resetInfo)}); 
+    const text = await res.text();
+    alert(text);   
+    this.resetPasswordRef.current.value = "";
+    this.resetPasswordRepeatRef.current.value = "";
+    this.setState({showPasswordResetDialog: false});
 }
 
 //renderPasswordResetDialog -- Present a dialog box for user to enter answer
@@ -479,13 +512,12 @@ render() {
            <button type="button" className="btn btn-link login-link"
              onClick={() => {this.setState({showLookUpAccountDialog: true});}}>Reset your password</button>
         </p>
-     
-        <a role="button" className="login-btn">
-            <img src="https://drive.google.com/uc?export=view&id=1YXRuG0pCtsfvbDSTzuM2PepJdbBpjEut" />
-        </a>
-        <a role="button" className="login-btn">
-            <img src="https://drive.google.com/uc?export=view&id=1ZoySWomjxiCnC_R4n9CZWxd_qXzY1IeL" />
-        </a>
+        <p></p>
+            <button type="button" className="btn btn-github"
+               onClick={() => this.handleOAuthLoginClick("github")}>
+              <span className={this.state.githubIcon}></span>&nbsp;{this.state.githubLabel}
+            </button>
+        <p></p>
         <p>
             <i>IA5 CptS 489 react amplify</i>
         </p>
