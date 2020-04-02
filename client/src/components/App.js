@@ -9,7 +9,7 @@ import ConstructionPage from './ConstructionPage.js'
 import Delta from './../delta.png'
 
 const modeTitle = {};
-modeTitle[AppMode.LOGIN] = "welcome to IA6: login";
+modeTitle[AppMode.LOGIN] = "welcome to IA8: login";
 modeTitle[AppMode.DATA] = "my data";
 modeTitle[AppMode.DATA_ADD] = "add data";
 modeTitle[AppMode.DATA_EDIT] = "edit data";
@@ -29,7 +29,8 @@ class App extends React.Component{
         this.state = {mode: AppMode.LOGIN,
                       menuOpen: false,
                       userId: "",
-                      showAbout: false};
+                      showAbout: false,
+                      authenticated: false,};
         }
 
     handleChangeMode = (newMode) => {
@@ -69,7 +70,7 @@ class App extends React.Component{
         .then((response) => response.json())
         .then((obj) => {
           if (obj.isAuthenticated) {
-            let data = JSON.parse(localStorage.getItem("speedgolfUserData"));
+            let data = JSON.parse(localStorage.getItem("userData"));
             if (data == null) {
               data = {}; //create empty database (localStorage)
             }
@@ -86,13 +87,13 @@ class App extends React.Component{
                 roundCount: 0
               };
               //Commit to localStorage:
-              localStorage.setItem("speedgolfUserData",JSON.stringify(data));
+              localStorage.setItem("userData",JSON.stringify(data));
             } 
             //Update current user
             this.setState({
               authenticated: true,
               user: obj.user,
-              mode: AppMode.FEED //We're authenticated so can get into the app.
+              mode: AppMode.DATA //We're authenticated so can get into the app.
             });
           }
         }

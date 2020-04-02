@@ -1,6 +1,7 @@
 //code from class
 import React from 'react';
 import AppMode from "./../AppMode.js";
+import md5 from '../md5.js';
 
 class LoginPage extends React.Component {
 
@@ -56,12 +57,34 @@ handleLogin = () => {
 
 //handleLoginSubmit -- Called when user clicks on login button. Initiate spinner
 //for 1 second and call handleLogin to do the work.
-handleLoginSubmit = (event) => {
+handleLoginSubmit = async (event) => {
     event.preventDefault();
     this.setState({loginBtnIcon: "fa fa-spin fa-spinner",
-                    loginBtnLabel: "Logging In..."});
-    //Initiate spinner for 1 second
-    setTimeout(this.handleLogin,1000);
+                   loginBtnLabel: "Logging In..."});
+    const url = "/auth/login?username=" + this.emailInputRef.current.value +
+                "&password=" + this.passwordInputRef.current.value;
+    const res = await fetch(url, {method: 'POST'}); 
+    if (res.status == 200) { //successful login!
+        //Force componentDidMount to execute.
+        //authenticated state will be updated and 
+        //Session will be deserialized.
+        window.open("/","_self");
+    } else { //Unsuccessful login
+      //Grab textual error message
+      const resText = await res.text();
+      //Display error message for 3 seconds and invite another login attempt
+      this.setState({loginBtnIcon: "fa fa-sign-in",
+                     loginBtnLabel: "Log In",
+                     loginMsg: resText}, () => setTimeout(this.hideErrorMsg,3000));
+    }
+}
+
+//hideErrorMsg -- Clears the email and pasword field and hides the login error
+//message, thus inviting a new attempt.
+hideErrorMsg = () => {
+    this.emailInputRef.current.value = "";
+    this.passwordInputRef.current.value = "";
+    this.setState({loginMsg: ""});
 }
 
 //handleOAuthLogin -- Callback function that initiates contact with OAuth
@@ -113,30 +136,28 @@ handleNewAccountChange = (event) => {
 //Custom data checking ensures user account under this email does not exist
 //and that the rest of the info is valid. At this point, we can create 
 //new object for user, save to localStorage and take user to app's landing page. 
-handleCreateAccount = (event) => {
+handleCreateAccount = async (event) => {
     event.preventDefault();
-    let data = JSON.parse(localStorage.getItem("userData"));
-    //Create fresh user data object for new user
-    if (data == null) {
-        data = {}; //create empty data object
+    const url = '/user/' + this.state.accountName;
+    const loginInfo = {password: this.state.accountPassword,
+                       securityQuestion: this.state.accountSecurityQuestion,
+                       securityAnswer: this.state.accountSecurityAnswer};
+    const res = await fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+        method: 'POST',
+        body: JSON.stringify(loginInfo)}); 
+    if (res.status == 200) { //successful account creation!
+        alert("Your account was successfully created. Please log in using your email and password to continue.");
+        this.setState({showAccountDialog: false});
+    } else { //Unsuccessful account creation
+      //Grab textual error message
+      const resText = await res.text();
+      alert(resText); //most likely the username is already taken
     }
-    data[this.state.accountName] = {
-        accountInfo: {
-        password: this.state.accountPassword,
-        securityQuestion: this.state.accountSecurityQuestion,
-        securityAnswer: this.state.accountSecurityAnswer
-        },
-        name: {}, 
-        nameCount: 0
-    };
-    //Commit to localStorage:
-    localStorage.setItem("userData",JSON.stringify(data));
-    //Set current user
-    this.props.setUserId(this.state.accountName);
-    //Log in user by switching to FEED mode
-    this.props.changeMode(AppMode.DATA);
 }
-
 //handleLoginChange -- Check the validity of the username (email address)
 //password entered into the login page, setting the customValidity message 
 //appropriately. 
@@ -266,23 +287,27 @@ handleLoginChange = (event) => {
 //button, we check whether the account exists. If it does, we update the state,
 //setting the resetEmail var to the email entered, hiding the current dialog box
 //and showing the security question dialog box.
-handleLookUpAccount = (event) => {
+handleLookUpAccount = async (event) => {
     event.preventDefault();
-    let thisUser = this.accountEmailRef.current.value;
-    let data = JSON.parse(localStorage.getItem("userData"));
-    //Check username and password:
-    if (data == null || !data.hasOwnProperty(thisUser)) { 
-        alert("Sorry, there is no account associated with this email address.");
+    let url = "/users/" + this.accountEmailRef.current.value;
+    let res = await fetch(url, {method: 'GET'});
+    let body;
+    if (res.status != 200) {
+        alert("Sorry, there is no account associated with that email address.");
         this.accountEmailRef.current.focus();
-    } else {
-        this.setState({resetEmail: thisUser, 
-                       resetQuestion: data[thisUser].accountInfo.securityQuestion,
-                       resetAnswer: data[thisUser].accountInfo.securityAnswer,
-                       showLookUpAccountDialog: false, 
-                       showSecurityQuestionDialog: true});
-    }
+        return;
+    } 
+    body = await res.json();
+    body = JSON.parse(body);
+    alert("Body: " + body);
+    //if here, account exists -- user account info and push to state vars
+    this.setState({resetEmail: this.accountEmailRef.current.value, 
+                   resetQuestion:  body.securityQuestion,
+                   resetAnswer: body.securityAnswer,
+                   showLookUpAccountDialog: false, 
+                   showSecurityQuestionDialog: true});
+    this.emailInputRef.current.value = ""; //clear out field
 }
-
 //renderLookUpAccountDialog -- Present a dialog box for user to enter the email address
 //associated with their account in case where they want to reset password
 renderLookUpAccountDialog = () => {
@@ -464,7 +489,7 @@ render() {
     <div id="login-mode-div" className="padded-page">
     <center>
         <h1 />
-        <form onSubmit={this.handleLoginSubmit} onChange={this.handleLoginChange}>
+        <form onSubmit={this.handleLoginSubmit}>
         <label htmlFor="emailInput" style={{ padding: 0, fontSize: 24 }}>
             Email:
             <input
