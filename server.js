@@ -2,7 +2,7 @@
 //MONGOOSE SET-UP//
 ///////////////////
 import mongoose, { Collection } from 'mongoose';
-const connectStr = 'mongodb://localhost/appdb';
+const connectStr = 'mongodb+srv://jmarcoares:Juanmarco98@ia8-ares-qmro0.mongodb.net/test?retryWrites=true&w=majority';
 mongoose.set('useFindAndModify', false);
 
 //Open connection to database
