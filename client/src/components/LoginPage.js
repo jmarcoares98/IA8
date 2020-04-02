@@ -17,6 +17,9 @@ class LoginPage extends React.Component {
         this.resetPasswordRepeatRef = React.createRef();
         this.state = {loginBtnIcon: "fa fa-sign-in",
                       loginBtnLabel: "Log In",
+                      loginMsg: "",
+                      githubIcon: "fa fa-github",
+                      githubLabel: "Sign in with GitHub",
                       showAccountDialog: false,
                       showLookUpAccountDialog: false,
                       showSecurityQuestionDialog: false,
@@ -42,7 +45,11 @@ handleLogin = () => {
     this.setState({loginBtnIcon: "fa fa-sign-in",
                 loginBtnLabel: "Log In"});
     //Set current user
-    this.props.setUserId(this.emailInputRef.current.value);
+    this.props.setUser({id: this.emailInputRef.current.value,
+        username:  this.emailInputRef.current.value,
+        provider: "local",
+        profileImageUrl: `https://www.gravatar.com/avatar/${md5(this.emailInputRef.current.value)}`});
+    this.props.setAuthenticated(true);
     //Trigger switch to FEED mode (default app landing page)
     this.props.changeMode(AppMode.DATA);
 }
@@ -52,9 +59,38 @@ handleLogin = () => {
 handleLoginSubmit = (event) => {
     event.preventDefault();
     this.setState({loginBtnIcon: "fa fa-spin fa-spinner",
-                    loginBtnLabel: "Logging In..."});
-    //Initiate spinner for 1 second
-    setTimeout(this.handleLogin,1000);
+                   loginBtnLabel: "Logging In..."});
+    const url = "/auth/login?username=" + this.emailInputRef.current.value +
+                "&password=" + this.passwordInputRef.current.value;
+    const res = await fetch(url, {method: 'POST'}); 
+    if (res.status == 200) { //successful login!
+        //Force componentDidMount to execute.
+        //authenticated state will be updated and 
+        //Session will be deserialized.
+        window.open("/","_self");
+    } else { //Unsuccessful login
+      //Grab textual error message
+      const resText = await res.text();
+      //Display error message for 3 seconds and invite another login attempt
+      this.setState({loginBtnIcon: "fa fa-sign-in",
+                     loginBtnLabel: "Log In",
+                     loginMsg: resText}, () => setTimeout(this.hideErrorMsg,3000));
+}
+
+hideErrorMsg = () => {
+    this.emailInputRef.current.value = "";
+    this.passwordInputRef.current.value = "";
+    this.setState({loginMsg: ""});
+}
+
+handleOAuthLogin = (provider) => {
+    window.open(`/auth/${provider}`,"_self");
+}
+
+handleOAuthLoginClick = (provider) => {
+   this.setState({[provider + "Icon"] : "fa fa-spin fa-spinner",
+                  [provider + "Label"] : "Connecting..."});
+   setTimeout(() => this.handleOAuthLogin(provider),1000);
 }
 
 //checkAccountValidity -- Callback function invoked after a form element in
@@ -70,13 +106,6 @@ checkAccountValidity = () => {
         this.repeatPassRef.current.setCustomValidity("This password must match original password.");
     } else {
         this.repeatPassRef.current.setCustomValidity("");
-    }
-    let data = JSON.parse(localStorage.getItem("userData"));
-    if (data != null && data.hasOwnProperty(this.state.accountName)) {
-        //The user name is already taken
-        this.newUserRef.current.setCustomValidity("An account already exists under this email address. Use 'Reset password' to recover the password.");
-    } else {
-        this.newUserRef.current.setCustomValidity("");
     }
 }
     
