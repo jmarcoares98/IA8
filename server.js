@@ -1,4 +1,48 @@
 ///////////////////
+//MONGOOSE SET-UP//
+///////////////////
+import mongoose, { Collection } from 'mongoose';
+const connectStr = 'mongodb://localhost/appdb';
+mongoose.set('useFindAndModify', false);
+
+//Open connection to database
+mongoose.connect(connectStr, {useNewUrlParser: true, useUnifiedTopology: true})
+  .then(
+    () =>  {console.log(`Connected to ${connectStr}.`)},
+    err => {console.error(`Error connecting to ${connectStr}: ${err}`)}
+  );
+
+//Define schema that maps to a document in the Users collection in the appdb
+//database.
+const Schema = mongoose.Schema;
+
+const dataSchema = new Schema({
+    name: {type: String, required: true},
+    birthday: {type: Date, required: true}
+});
+
+const dataSchema = new Schema({
+  id: {type: String, required: true}, //unique identifier for user
+  password: String, //unencrypted password (for now!)
+  displayName: {type: String, required: true}, //Name to be displayed within app
+  authStrategy: {type: String, required: true}, //strategy used to authenticate, e.g., github, local
+  profileImageUrl: {type: String, required: true}, //link to profile image
+  securityQuestion: String,
+  securityAnswer: {type: String, required: function() {return this.securityQuestion ? true: false}},
+  rounds: [dataSchema]
+});
+
+//Convert schema to model
+const User = mongoose.model("User",userSchema); 
+//We can use User to read from and write to the 'users' collection of the appdb
+//This is by convention. From https://mongoosejs.com/docs/models.html:
+//When creating a model from a schema, "Mongoose automatically looks for the 
+//plural, lowercased version of your model name [in the first paramater]." 
+//It then writes to that collection in the database to which you are connected.
+//If that collection does not yet exist, it is automatically created when the
+//first document is written!
+
+///////////////////
 //PASSPORT SET-UP//
 ///////////////////
 const LOCAL_PORT = 3000;
