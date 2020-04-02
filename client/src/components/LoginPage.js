@@ -534,7 +534,7 @@ render() {
             </button>
         <p></p>
         <p>
-            <i>IA5 CptS 489 react amplify</i>
+            <i>IA8 CptS 489 react amplify</i>
         </p>
         <p>
             <i>© 2020 marco ares. all rights reserved.</i>
