@@ -130,3 +130,181 @@ passport.deserializeUser(async (userId, done) => {
     }
   });
 
+//////////////////////
+//EXPRESS APP SET-UP//
+/////////////////////
+import session from 'express-session';
+import path from 'path';
+const PORT = process.env.HTTP_PORT || LOCAL_PORT;
+import express from 'express';
+import {md5} from './md5.js';
+
+const app = express();
+app
+  .use(session({secret: "speedgolf2020", 
+                resave: false,
+                saveUninitialized: false,
+                cookie: {maxAge: 1000 * 60}}))
+  .use(express.static(path.join(__dirname,"client/build")))
+  .use(passport.initialize())
+  .use(passport.session())
+  .use(express.json())
+  .listen(PORT, () => console.log(`Listening on ${PORT}`));
+
+//////////////////////////////////////////////////////
+//EXPRESS APP ROUTES FOR USER AUTHENTICATION (/auth)//
+//////////////////////////////////////////////////////
+
+//AUTHENTICATE route (GET): Uses passport to authenticate with GitHub.
+//Should be accessed when user clicks on 'Login with GitHub' button on 
+//Log In page.
+app.get('/auth/github', passport.authenticate('github'));
+
+//CALLBACK route (GET):  GitHub will call this route after the
+//OAuth authentication process is complete.
+//req.isAuthenticated() tells us whether authentication was successful.
+app.get('/auth/github/callback', passport.authenticate('github', { failureRedirect: '/' }),
+  (req, res) => {
+    console.log("auth/github/callback reached.")
+    res.redirect('/'); //sends user back to app; req.isAuthenticated() indicates status
+  }
+);
+
+//LOGOUT route (GET): Use passport's req.logout() method to log the user out and
+//redirect the user to the main app page. req.isAuthenticated() is toggled to false.
+app.get('/auth/logout', (req, res) => {
+    console.log('/auth/logout reached. Logging out');
+    req.logout();
+    res.redirect('/');
+});
+
+//AUTH TEST route (GET): Tests whether user was successfully authenticated.
+//Should be called from the React.js client to set up app state.
+app.get('/auth/test', (req, res) => {
+    console.log("auth/test reached.");
+    const isAuth = req.isAuthenticated();
+    if (isAuth) {
+        console.log("User is authenticated");
+        console.log("User object in req.user: " + JSON.stringify(req.user));
+    } else {
+        //User is not authenticated.
+        console.log("User is not authenticated");
+    }
+    //Return JSON object to client with results.
+    res.json({isAuthenticated: isAuth, user: req.user});
+});
+
+//AUTH/LOGIN route (POST): Attempts to log in user using local strategy
+//username and password included as query parameters.
+app.post('/auth/login', 
+  passport.authenticate('local', { failWithError: true }),
+  (req, res) => {
+    console.log("/login route reached: successful authentication.");
+    res.status(200).send("Login successful");
+    //Assume client will redirect to '/' route to deserialize session
+  },
+  (err, req, res, next) => {
+    console.log("/auth/login route reached: unsuccessful authentication");
+    //res.sendStatus(401);
+    if (req.authError) {
+      console.log("req.authError: " + req.authError);
+      res.status(400).send(req.authError);
+    } else {
+      res.status(400).send("Unexpected error occurred when attempting to authenticate. Please try again.");
+    }
+  });
+
+  
+  //SECURITYQUESTION route (GET) DEPRECATED!: Returns security question associated with user
+  //account with id === req.body.userId, if account exists. Otherwise returns
+  //message.
+  //DEPRECATED: Use /user/userId
+  app.get('/securityquestion', async(req, res, next) => {
+    console.log("in /securityquestion route with query params = " + JSON.stringify(req.query));
+    if (!req.query.hasOwnProperty("userId")) {
+      //Request does not contain correct query parameters
+      return res.status(401).send("GET request for security question is improperly formatted." +
+                                  " It needs a 'userId' query parameter.")
+    }
+    let thisUser;
+    try {
+      thisUser = await User.findOne({id: req.query.userId});
+      if (!thisUser) { //now such account exists
+        res.status(401).send("There is no account associated with email '" + req.query.userId + "'.");
+      } else { //account exists -- fetch securityQuestion
+        return res.status(200).send(thisUser.securityQuestion);
+      }
+    } catch (err) {
+      console.log("Error occurred when looking up or accessing user in database.")
+      return next(err);
+    }
+  });
+
+  //VERIFYSECURITYANSWER route (GET) DEPRECATED!: Returns true if the answer provided as a
+  //query param is the correct answer to the security question of the acount
+  //associated with userId, false otherwise. Note that result is returned within
+  //JSON object
+  //Deprecated: Use user/userid
+  app.get('/verifysecurityanswer', async(req, res, next) => {
+    console.log("in /verifysecurityanswer route with query params = " + JSON.stringify(req.query));
+    if (!req.query.hasOwnProperty("userId") || !req.query.hasOwnProperty("answer")) {
+      //Request does not contain correct query parameters
+      return res.status(401).send("GET request for verifysecurityanswer is improperly formatted." +
+                                  " It needs 'userId' and 'answer' query parameters.")
+    }
+    let thisUser;
+    try {
+      thisUser = await User.findOne({id: req.query.userId});
+      if (!thisUser) { //now such account exists
+        res.status(401).send("There is no account associated with email '" + req.query.userId + "'.");
+      } else { //account exists -- return whether answer matches answer on file
+        return res.status(200).json({result: req.query.answer === thisUser.securityAnswer});
+      }
+    } catch (err) {
+      console.log("Error occurred when looking up or accessing user in database.")
+      return next(err);
+    }
+  });
+
+  //DEPRECATED: Use User/Id PUT request!
+  //AUTH/RESET route (POST): Change the user's password. The message
+  //body is a JSON object containing three fields: userId, securityAnswer and
+  //newPassword. If securityAnswer does not match the one on file for userId,
+  //the request fails. Otherwise, the password is updated.
+  app.post('auth/reset',  async (req, res, next) => {
+    console.log("in /resetpassword route with body = " + JSON.stringify(req.body));
+    if (!req.body.hasOwnProperty("userId") || 
+        !req.body.hasOwnProperty("answer") || 
+        !req.body.hasOwnProperty("newPassword")) {
+      //Body does not contain correct properties
+      return res.status(401).send("POST request for /resetpassword formulated incorrectly." +
+        "Its body must contain 'userId', 'answer', and 'newPassword' fields.")
+    }
+    let thisUser;
+    try {
+      thisUser = await User.findOne({id: req.body.userId});
+      if (!thisUser) { //account already exists
+        res.status(401).send("There is no account with email '" + req.body.userId + "'.");
+      } else if (thisUser.authStrategy != "local") {
+        res.status(401).send("Cannot reset password on account with userId " + req.body.userId +
+          ". The user does not have a local account. ");
+      } else if (thisUser.securityAnswer != req.body.answer) { //security answer incorrect 
+        res.status(401).send("Password not reset because security answer does not match answer on file.");
+      } else { //Can try to update password
+        try {
+          let status = await User.updateOne({id: req.body.userId},{password: req.body.newPassword});
+          if (status.nModified != 1) { //Should never happen!
+            res.status(401).send("User account exists in database but password could not be updated.");
+          } else {
+            res.status(200).send("User password successfully updated.")
+          }
+        } catch (err) {
+          console.log("Error occurred when updating user password in database.")
+          return next(err);
+        }
+      }
+    } catch (err) {
+      console.log("Error occurred when looking up user in database.")
+      return next(err);
+    }
+  });
