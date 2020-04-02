@@ -4,27 +4,29 @@
   "description": "final assignment for cpts489",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon --exec babel-node server.js --ignore client",
+    "build": "babel server.js --out-file server.compiled.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jmarcoares98/IA8.git"
   },
   "keywords": [
-    "ia8"
+    "ia8",
+    "react.js",
+    "express.js",
+    "oauth"
   ],
   "author": "Marco Ares",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/jmarcoares98/IA8/issues"
-  },
-  "homepage": "https://github.com/jmarcoares98/IA8#readme",
   "dependencies": {
     "express": "^4.17.1",
     "express-session": "^1.17.0",
     "nodemon": "^2.0.2",
     "passport": "^0.4.1",
     "passport-github": "^1.1.0",
+    "passport-local": "^1.0.0",
     "path": "^0.12.7"
   },
   "devDependencies": {

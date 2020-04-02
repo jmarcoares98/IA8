@@ -7,8 +7,8 @@ import passport from 'passport';
 import passportGithub from 'passport-github'; 
 const GithubStrategy = passportGithub.Strategy;
 passport.use(new GithubStrategy({
-    clientID: "1b903fd9129642776b3c",
-    clientSecret: "1e54162ecb7230eca9d26cc6484636e561e4d838",
+    clientID: "8a28ab447eaec688fca5",
+    clientSecret: "bd571b576b0f5cd367ba6ce5d26f2e2092de1954",
     callbackURL: DEPLOY_URL + "/auth/github/callback"
   },
   //The following function is called after user authenticates with github
