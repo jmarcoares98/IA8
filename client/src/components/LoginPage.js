@@ -1,6 +1,7 @@
 //code from class
 import React from 'react';
 import AppMode from "./../AppMode.js";
+import md5 from '../md5.js';
 
 class LoginPage extends React.Component {
 
@@ -56,7 +57,7 @@ handleLogin = () => {
 
 //handleLoginSubmit -- Called when user clicks on login button. Initiate spinner
 //for 1 second and call handleLogin to do the work.
-handleLoginSubmit = (event) => {
+handleLoginSubmit = async (event) => {
     event.preventDefault();
     this.setState({loginBtnIcon: "fa fa-spin fa-spinner",
                    loginBtnLabel: "Logging In..."});
@@ -75,18 +76,26 @@ handleLoginSubmit = (event) => {
       this.setState({loginBtnIcon: "fa fa-sign-in",
                      loginBtnLabel: "Log In",
                      loginMsg: resText}, () => setTimeout(this.hideErrorMsg,3000));
+    }
 }
 
+//hideErrorMsg -- Clears the email and pasword field and hides the login error
+//message, thus inviting a new attempt.
 hideErrorMsg = () => {
     this.emailInputRef.current.value = "";
     this.passwordInputRef.current.value = "";
     this.setState({loginMsg: ""});
 }
 
+//handleOAuthLogin -- Callback function that initiates contact with OAuth
+//provider
 handleOAuthLogin = (provider) => {
     window.open(`/auth/${provider}`,"_self");
 }
 
+//handleOAuthLoginClick -- Called whent the user clicks on button to
+//authenticate via a third-party OAuth service. The name of the provider is
+//passed in as a parameter.
 handleOAuthLoginClick = (provider) => {
    this.setState({[provider + "Icon"] : "fa fa-spin fa-spinner",
                   [provider + "Label"] : "Connecting..."});
@@ -107,6 +116,13 @@ checkAccountValidity = () => {
     } else {
         this.repeatPassRef.current.setCustomValidity("");
     }
+    let data = JSON.parse(localStorage.getItem("userData"));
+    if (data != null && data.hasOwnProperty(this.state.accountName)) {
+        //The user name is already taken
+        this.newUserRef.current.setCustomValidity("An account already exists under this email address. Use 'Reset password' to recover the password.");
+    } else {
+        this.newUserRef.current.setCustomValidity("");
+    }
 }
     
 //handleNewAccountChange -- Called when a field in a dialog box form changes.
@@ -120,9 +136,9 @@ handleNewAccountChange = (event) => {
 //Custom data checking ensures user account under this email does not exist
 //and that the rest of the info is valid. At this point, we can create 
 //new object for user, save to localStorage and take user to app's landing page. 
-handleCreateAccount = (event) => {
+handleCreateAccount = async (event) => {
     event.preventDefault();
-    const url = '/user/' + this.state.accountName;
+    const url = '/users/' + this.state.accountName;
     const loginInfo = {password: this.state.accountPassword,
                        securityQuestion: this.state.accountSecurityQuestion,
                        securityAnswer: this.state.accountSecurityAnswer};
@@ -142,7 +158,6 @@ handleCreateAccount = (event) => {
       alert(resText); //most likely the username is already taken
     }
 }
-
 //handleLoginChange -- Check the validity of the username (email address)
 //password entered into the login page, setting the customValidity message 
 //appropriately. 
@@ -165,109 +180,114 @@ handleLoginChange = (event) => {
  
         
     //renderAccountDialog -- Present the "create account" dialog
-renderAccountDialog = () => {
-    return (
-    <div className="modal" role="dialog">
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h3 className="modal-title"><b>Create New Account</b>
-              <button className="close-modal-button" 
-                onClick={() => {this.setState({showLookUpAccountDialog: false})}}>
-                &times;</button>
-            </h3>
+    renderAccountDialog = () => {
+        return (
+        <div className="modal" role="dialog">
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3 className="modal-title"><b>Create New Account</b>
+                  <button className="close-modal-button" 
+                    onClick={() => {this.setState({showLookUpAccountDialog: false})}}>
+                    &times;</button>
+                </h3>
+              </div>
+              <div className="modal-body">
+                <form onSubmit={this.handleCreateAccount}>
+                <label>
+                    Email: 
+                    <input
+                    className="form-control form-text"
+                    name="accountName"
+                    type="email"
+                    size="35"
+                    placeholder="Enter Email Address"
+                    pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+                    ref={this.newUserRef}
+                    required={true}
+                    value={this.state.accountName}
+                    onChange={this.handleNewAccountChange}
+                    />
+                </label>
+                
+                <label>
+                    Password:
+                    <input
+                    className="form-control form-text"
+                    name="accountPassword"
+                    type="password"
+                    size="35"
+                    placeholder="Enter Password"
+                    pattern="(?=^.{8,}$)((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$"
+                    required={true}
+                    ref={this.repeatPassRef}
+                    value={this.state.accountPassword}
+                    onChange={this.handleNewAccountChange}
+                    />
+                </label>
+                
+                <label>
+                    Repeat Password:
+                    <input
+                    className="form-control form-text"
+                    name="accountPasswordRepeat"
+                    type="password"
+                    size="35"
+                    placeholder="Repeat Password"
+                    required={true}
+                    ref={this.repeatPassRef}
+                    value={this.state.accountPasswordRepeat}
+                    onChange={this.handleNewAccountChange}
+                    />
+                </label>
+                
+                <label>
+                    Security Question:
+                    <textarea
+                    className="form-control form-text"
+                    name="accountSecurityQuestion"
+                    size="35"
+                    placeholder="Security Question"
+                    rows="2"
+                    cols="35"
+                    maxLength="100"
+                    required={true}
+                    value={this.state.accountSecurityQuestion}
+                    onChange={this.handleNewAccountChange}
+                    />
+                </label>
+                <label>
+                    Answer to Security Question:
+                    <textarea
+                    className="form-control form-text"
+                    name="accountSecurityAnswer"
+                    type="text"
+                    placeholder="Answer"
+                    rows="2"
+                    cols="35"
+                    maxLength="100"
+                    required={true}
+                    value={this.state.accountSecurityAnswer}
+                    onChange={this.handleNewAccountChange}
+                    />
+                </label>
+                <button role="submit" className="btn btn-primary btn-color-theme form-submit-btn">
+                    <span className="fa fa-user-plus"></span>&nbsp;Create Account
+                </button>
+                </form>
             </div>
-            <div className="modal-body">
-            <form onSubmit={this.handleCreateAccount}>
-            <label>
-                Email: 
-                <input
-                className="form-control form-text"
-                name="accountName"
-                type="email"
-                size="35"
-                placeholder="Enter Email Address"
-                pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
-                ref={this.newUserRef}
-                required={true}
-                value={this.state.accountName}
-                onChange={this.handleNewAccountChange}
-                />
-            </label>           
-            <label>
-                Password:
-                <input
-                className="form-control form-text"
-                name="accountPassword"
-                type="password"
-                size="35"
-                placeholder="Enter Password"
-                pattern="(?=^.{8,}$)((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$"
-                required={true}
-                ref={this.repeatPassRef}
-                value={this.state.accountPassword}
-                onChange={this.handleNewAccountChange}
-                />
-            </label>  
-            <label>
-                Repeat Password:
-                <input
-                className="form-control form-text"
-                name="accountPasswordRepeat"
-                type="password"
-                size="35"
-                placeholder="Repeat Password"
-                required={true}
-                ref={this.repeatPassRef}
-                value={this.state.accountPasswordRepeat}
-                onChange={this.handleNewAccountChange}
-                />
-            </label>
-            <label>
-                Security Question:
-                <textarea
-                className="form-control form-text"
-                name="accountSecurityQuestion"
-                size="35"
-                placeholder="Security Question"
-                rows="2"
-                cols="35"
-                maxLength="100"
-                required={true}
-                value={this.state.accountSecurityQuestion}
-                onChange={this.handleNewAccountChange}
-                />
-            </label>
-            <label>
-            Answer to Security Question:
-                <textarea
-                className="form-control form-text"
-                name="accountSecurityAnswer"
-                type="text"
-                placeholder="Answer"
-                rows="2"
-                cols="35"
-                maxLength="100"
-                required={true}
-                value={this.state.accountSecurityAnswer}
-                onChange={this.handleNewAccountChange}
-                />
-            </label>
-            <button role="submit" className="btn btn-primary btn-color-theme form-submit-btn">
-                <span className="fa fa-user-plus"></span>&nbsp;Create Account
-            </button>
-            </form>
-            </div>
-            </div>
+          </div>
         </div>
-    </div>);
+    </div>
+    );
+
 }
 
 //handleLookUpAccount: When the user clicks on the "Look Up Account" dialog box
 //button, we check whether the account exists. If it does, we update the state,
 //setting the resetEmail var to the email entered, hiding the current dialog box
 //and showing the security question dialog box.
-handleLookUpAccount = (event) => {
+handleLookUpAccount = async (event) => {
     event.preventDefault();
     let url = "/users/" + this.accountEmailRef.current.value;
     let res = await fetch(url, {method: 'GET'});
@@ -287,9 +307,7 @@ handleLookUpAccount = (event) => {
                    showLookUpAccountDialog: false, 
                    showSecurityQuestionDialog: true});
     this.emailInputRef.current.value = ""; //clear out field
-    }
 }
-
 //renderLookUpAccountDialog -- Present a dialog box for user to enter the email address
 //associated with their account in case where they want to reset password
 renderLookUpAccountDialog = () => {
@@ -399,25 +417,21 @@ renderSecurityQuestionDialog = () => {
 //we reset the password and log the user in. 
 handleResetPassword = (event) => {
     event.preventDefault();
+   
     if (this.resetPasswordRef.current.value != this.resetPasswordRepeatRef.current.value) { 
         alert("Sorry, The passwords you entered do not match. Please try again.");
         this.resetPasswordRepeatRef.current.select();
-        return;
+    } else { //Reset password and log user in
+        let data = JSON.parse(localStorage.getItem("userData"));
+        data[this.state.resetEmail].accountInfo.password = this.resetPasswordRef.current.value;
+        localStorage.setItem("userData",JSON.stringify(data));
+        this.props.setUserId(this.state.resetEmail);
+        this.props.changeMode(AppMode.DATA);
+        this.setState({resetEmail: "", 
+                       resetQuestion: "",
+                       resetAnswer: "",
+                       showPasswordResetDialog: false});
     }
-    const url = '/users/' + this.state.resetEmail;
-    const resetInfo = {password: this.resetPasswordRef.current.value};
-    const res = await fetch(url, {
-        headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-        },
-        method: 'PUT',
-        body: JSON.stringify(resetInfo)}); 
-    const text = await res.text();
-    alert(text);   
-    this.resetPasswordRef.current.value = "";
-    this.resetPasswordRepeatRef.current.value = "";
-    this.setState({showPasswordResetDialog: false});
 }
 
 //renderPasswordResetDialog -- Present a dialog box for user to enter answer
@@ -475,7 +489,7 @@ render() {
     <div id="login-mode-div" className="padded-page">
     <center>
         <h1 />
-        <form onSubmit={this.handleLoginSubmit} onChange={this.handleLoginChange}>
+        <form onSubmit={this.handleLoginSubmit}>
         <label htmlFor="emailInput" style={{ padding: 0, fontSize: 24 }}>
             Email:
             <input
@@ -512,6 +526,7 @@ render() {
            <button type="button" className="btn btn-link login-link"
              onClick={() => {this.setState({showLookUpAccountDialog: true});}}>Reset your password</button>
         </p>
+     
         <p></p>
             <button type="button" className="btn btn-github"
                onClick={() => this.handleOAuthLoginClick("github")}>
@@ -519,7 +534,7 @@ render() {
             </button>
         <p></p>
         <p>
-            <i>IA5 CptS 489 react amplify</i>
+            <i>IA8 CptS 489 react amplify</i>
         </p>
         <p>
             <i>© 2020 marco ares. all rights reserved.</i>
